@@ -265,9 +265,41 @@ pub use yew_macro::html_nested;
 /// [Yew Docs]: https://yew.rs/concepts/components/properties
 pub use yew_macro::props;
 
+/// This macro loads and renders MDX files as HTML.
+///
+/// It combines the `mdx` macro with `html` to load MDX files at compile time
+/// and convert them to Yew's Html type.
+///
+/// # Example
+///
+/// ```ignore
+/// use yew::{include_mdx, Html};
+///
+/// fn my_component() -> Html {
+///     include_mdx!("path/to/file.mdx")
+/// }
+/// ```
+pub use yew_macro::include_mdx;
+
+/// This macro defines component mappings for MDX elements.
+///
+/// It allows you to specify custom Yew components for rendering
+/// standard markdown elements (headings, paragraphs, code blocks, etc.).
+///
+/// # Example
+///
+/// ```ignore
+/// mdx_style!(
+///     h1: MyH1Component,
+///     p: MyParagraph,
+///     pre: MyCodeBlock,
+/// );
+/// ```
+pub use yew_macro::mdx_style;
+
 /// This module contains macros which implements html! macro and JSX-like templates
 pub mod macros {
-    pub use crate::{classes, html, html_nested, props};
+    pub use crate::{classes, html, html_nested, include_mdx, mdx_style, props};
 }
 
 pub mod callback;
@@ -335,7 +367,7 @@ pub mod prelude {
         create_portal, BaseComponent, Children, ChildrenWithProps, Classes, Component, Context,
         Html, HtmlResult, NodeRef, Properties,
     };
-    pub use crate::macros::{classes, html, html_nested};
+    pub use crate::macros::{classes, html, html_nested, include_mdx, mdx_style};
     pub use crate::suspense::Suspense;
     pub use crate::virtual_dom::AttrValue;
 }
