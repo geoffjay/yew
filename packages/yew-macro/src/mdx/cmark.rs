@@ -1,5 +1,5 @@
 use proc_macro::TokenStream;
-use pulldown_cmark::{Event, Options, Parser, Tag};
+use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
 use quote::quote;
 
 use super::GLOBAL_STYLE;
@@ -75,8 +75,8 @@ pub fn parse_commonmark(input: &str) -> TokenStream {
         let new_toks: TokenStream = match evt {
             Event::Start(tag) => match tag {
                 Tag::Paragraph => dyn_tag("p", Side::Start),
-                Tag::Heading(lvl, ..) => dyn_tag(&lvl.to_string(), Side::Start),
-                Tag::BlockQuote => dyn_tag("blockquote", Side::Start),
+                Tag::Heading { level, .. } => dyn_tag(&level.to_string(), Side::Start),
+                Tag::BlockQuote(_) => dyn_tag("blockquote", Side::Start),
                 Tag::CodeBlock(kind) => match kind {
                     pulldown_cmark::CodeBlockKind::Indented => FromIterator::from_iter(
                         [
@@ -111,39 +111,40 @@ pub fn parse_commonmark(input: &str) -> TokenStream {
                 Tag::Emphasis => dyn_tag("em", Side::Start),
                 Tag::Strong => dyn_tag("strong", Side::Start),
                 Tag::Strikethrough => dyn_tag("s", Side::Start),
-                Tag::Link(_type, url, title) => {
-                    format!("<{} href=\"{}\">{}", dyn_tag_name("a").to_string(), url, title)
+                Tag::Link { dest_url, title, .. } => {
+                    format!("<{} href=\"{}\">{}", dyn_tag_name("a").to_string(), dest_url, title)
                         .parse()
                         .unwrap()
                 }
-                Tag::Image(_type, url, title) => {
-                    let tag = dyn_tag_name("url");
-                    format!(r#"<{tag} src="{url}" title="{title}"/>"#)
+                Tag::Image { dest_url, title, .. } => {
+                    let tag = dyn_tag_name("img");
+                    format!(r#"<{tag} src="{dest_url}" title="{title}"/>"#)
                         .parse()
                         .unwrap()
                 }
+                _ => quote! {}.into(),
             },
             Event::End(tag) => match tag {
-                Tag::Paragraph => dyn_tag("p", Side::End),
-                Tag::Heading(lvl, ..) => dyn_tag(&lvl.to_string(), Side::End),
-                Tag::BlockQuote => dyn_tag("blockquote", Side::End),
-                Tag::CodeBlock(_) => {
+                TagEnd::Paragraph => dyn_tag("p", Side::End),
+                TagEnd::Heading(level) => dyn_tag(&level.to_string(), Side::End),
+                TagEnd::BlockQuote(_) => dyn_tag("blockquote", Side::End),
+                TagEnd::CodeBlock => {
                     FromIterator::from_iter(["</code>".parse().unwrap(), dyn_tag("pre", Side::End)])
                 }
-                Tag::List(None) => dyn_tag("ul", Side::End),
-                Tag::List(Some(0)) => dyn_tag("ol", Side::End),
-                Tag::List(Some(0..=u64::MAX)) => dyn_tag("ol", Side::End),
-                Tag::Item => dyn_tag("li", Side::End),
-                Tag::FootnoteDefinition(_) => todo!(),
-                Tag::Table(_) => dyn_tag("table", Side::End),
-                Tag::TableHead => dyn_tag("thead", Side::End),
-                Tag::TableRow => dyn_tag("tr", Side::End),
-                Tag::TableCell => dyn_tag("td", Side::End),
-                Tag::Emphasis => dyn_tag("em", Side::End),
-                Tag::Strong => dyn_tag("strong", Side::End),
-                Tag::Strikethrough => dyn_tag("s", Side::End),
-                Tag::Link(_type, _url, _title) => dyn_tag("a", Side::End),
-                Tag::Image(_type, _url, _title) => "".parse().unwrap(),
+                TagEnd::List(false) => dyn_tag("ul", Side::End),
+                TagEnd::List(true) => dyn_tag("ol", Side::End),
+                TagEnd::Item => dyn_tag("li", Side::End),
+                TagEnd::FootnoteDefinition => todo!(),
+                TagEnd::Table => dyn_tag("table", Side::End),
+                TagEnd::TableHead => dyn_tag("thead", Side::End),
+                TagEnd::TableRow => dyn_tag("tr", Side::End),
+                TagEnd::TableCell => dyn_tag("td", Side::End),
+                TagEnd::Emphasis => dyn_tag("em", Side::End),
+                TagEnd::Strong => dyn_tag("strong", Side::End),
+                TagEnd::Strikethrough => dyn_tag("s", Side::End),
+                TagEnd::Link => dyn_tag("a", Side::End),
+                TagEnd::Image => "".parse().unwrap(),
+                _ => quote! {}.into(),
             },
             Event::Text(txt) => format!("{{r###\"{}\"###}}", txt).parse().unwrap(),
             Event::Code(code) => {
